@@ -1,6 +1,28 @@
 <!-- 用户列表 -->
 <template>
   <div style="height: 100%;">
+    <Row :gutter="16" class="margin-bottom">
+      <Col span="14">
+      <Button
+        type="primary"
+        @click="isShowUserModal = true"
+      >
+        添加已有用户
+      </Button>
+      </Col>
+      <Col span="10">
+      <Input
+        placeholder="搜索用户"
+        v-model="user.filterName"
+        @on-change="onSearchClick"></Input>
+      </Col>
+    </Row>
+    <UserEdit
+      :currentGroup="currentGroup"
+      :isShowUserModal="isShowUserModal"
+      v-if="currentGroup"
+      @on-submit="reloadUserList"
+      @on-close="isShowUserModal = false" />
     <Table
       :columns="user.columns"
       :data="user.data"
@@ -16,15 +38,21 @@
 </template>
 <script>
 // eslint-disable-next-line
-import { Table, Page, Icon } from 'iview'
+import { Table, Page, Icon, Row, Col, Button, Input } from 'iview'
+import UserEdit from './UserEdit.vue'
 
 import { api } from '../api'
 
 export default {
   name: 'UserList',
   components: {
+    Row,
+    Col,
+    Button,
+    Input,
     Table,
-    Page
+    Page,
+    UserEdit
   },
   props: {
     currentGroup: {
@@ -33,15 +61,13 @@ export default {
       default: () => {
         return {}
       }
-    },
-    isReloadUserList: {
-      type: Boolean,
-      required: false
     }
   },
   data () {
     return {
+      isShowUserModal: false,
       user: {
+        filterName: '',
         page: 1,
         size: 10,
         total: 0,
@@ -95,14 +121,6 @@ export default {
           this.getUserList()
         }
       }
-    },
-    isReloadUserList: {
-      handler (curVal, oldVal) {
-        if (this.currentGroup) {
-          // 添加用户后刷新用户列表页面
-          this.getUserList()
-        }
-      }
     }
   },
   mounted () {
@@ -123,6 +141,10 @@ export default {
       let { page, size } = this.user
       let name = this.currentGroup.name
 
+      if (this.user.filterName) {
+        // url + 过滤条件
+      }
+
       this.$axios.get(`${api.users}/?page=${page}&size=${size}&groupname=${name}`).then(res => {
         this.user.data = res.data.result
         this.user.total = res.data.pages.total
@@ -133,6 +155,16 @@ export default {
     onPageChange (page) {
       this.user.page = page
       this.getUserList()
+    },
+    onSearchClick () {
+      this.getUserList()
+    },
+    reloadUserList () {
+      this.isShowUserModal = false
+      if (this.currentGroup) {
+        // 添加用户后刷新用户列表页面
+        this.getUserList()
+      }
     }
   }
 }

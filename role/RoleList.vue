@@ -1,6 +1,28 @@
 <!-- 角色列表 -->
 <template>
   <div style="height: 100%;">
+    <Row :gutter="16" class="margin-bottom">
+      <Col span="14">
+      <Button
+        type="primary"
+        @click="isShowRoleModal = true"
+      >
+        添加已有角色
+      </Button>
+      </Col>
+      <Col span="10">
+      <Input
+        placeholder="搜索角色"
+        v-model="role.filterName"
+        @on-change="onSearchClick"></Input>
+      </Col>
+    </Row>
+    <RoleEdit
+      :currentGroup="currentGroup"
+      :isShowRoleModal="isShowRoleModal"
+      v-if="currentGroup"
+      @on-submit="reloadRoleList"
+      @on-close="isShowRoleModal = false" />
     <Table
       :columns="role.columns"
       :data="role.data"
@@ -11,14 +33,20 @@
 </template>
 <script>
 // eslint-disable-next-line
-import { Table, Icon } from 'iview'
+import { Table, Icon, Col, Row, Button, Input } from 'iview'
+import RoleEdit from './RoleEdit.vue'
 
 import { api } from '../api'
 
 export default {
   name: 'RoleList',
   components: {
-    Table
+    Row,
+    Col,
+    Button,
+    Input,
+    Table,
+    RoleEdit
   },
   props: {
     currentGroup: {
@@ -27,15 +55,13 @@ export default {
       default: () => {
         return {}
       }
-    },
-    isReloadRoleList: {
-      type: Boolean,
-      required: false
     }
   },
   data () {
     return {
+      isShowRoleModal: false,
       role: {
+        filterName: '',
         loading: false,
         page: 1,
         size: 10,
@@ -88,14 +114,6 @@ export default {
           this.getRoleList()
         }
       }
-    },
-    isReloadRoleList: {
-      handler (curVal, oldVal) {
-        if (this.currentGroup) {
-          // 添加角色后刷新角色列表页面
-          this.getRoleList()
-        }
-      }
     }
   },
   mounted () {
@@ -116,11 +134,25 @@ export default {
       let { page, size } = this.role
       let groupId = this.currentGroup.id
 
+      if (this.role.filterName) {
+        // url + 过滤条件
+      }
+
       this.$axios.get(`${api.roles}?page=${page}&size=${size}&groupId=${groupId}`).then(res => {
         this.role.data = res.data.result
         this.role.total = res.data.pages.total
         this.role.loading = false
       })
+    },
+    onSearchClick () {
+      this.getRoleList()
+    },
+    reloadRoleList () {
+      this.isShowRoleModal = false
+      if (this.currentGroup) {
+        // 添加角色后刷新角色列表页面
+        this.getRoleList()
+      }
     }
   }
 }
