@@ -13,15 +13,16 @@
       <Col span="10">
       <Input
         placeholder="搜索角色"
-        v-model="role.filterName"
+        v-model="role.fuzzyName"
         @on-change="onSearchClick"></Input>
       </Col>
     </Row>
     <RoleEdit
       :currentGroup="currentGroup"
       :isShowRoleModal="isShowRoleModal"
+      :currentRoleList="getCurrentRoleList"
       v-if="currentGroup"
-      @on-submit="reloadRoleList"
+      @on-submit="onReloadList"
       @on-close="isShowRoleModal = false" />
     <Table
       :columns="role.columns"
@@ -29,14 +30,17 @@
       size="small"
       :loading="role.loading"
       class="margin-bottom"></Table>
+    <ConfirmModal ref="confirmModal" @transfer-ok="onDeleteClick"></ConfirmModal>
   </div>
 </template>
+
 <script>
 // eslint-disable-next-line
 import { Table, Icon, Col, Row, Button, Input } from 'iview'
 import RoleEdit from './RoleEdit.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 
-import { api } from '../api'
+import api from '../api'
 
 export default {
   name: 'RoleList',
@@ -46,7 +50,8 @@ export default {
     Button,
     Input,
     Table,
-    RoleEdit
+    RoleEdit,
+    ConfirmModal
   },
   props: {
     currentGroup: {
@@ -60,11 +65,10 @@ export default {
   data () {
     return {
       isShowRoleModal: false,
+      id: null, // 删除id
       role: {
-        filterName: '',
+        fuzzyName: '',
         loading: false,
-        page: 1,
-        size: 10,
         data: [],
         columns: [
           { title: '角色', key: 'name', minWidth: 110 },
@@ -81,7 +85,7 @@ export default {
                   },
                   on: {
                     click: () => {
-                      this.deleteRole(params.row.name)
+                      this.showConfirmModal(params.row.id)
                     }
                   }
                 },
@@ -107,6 +111,11 @@ export default {
       }
     }
   },
+  computed: {
+    getCurrentRoleList () {
+      return this.role.data.map(item => item.id)
+    }
+  },
   watch: {
     currentGroup: {
       handler (curVal, oldVal) {
@@ -123,31 +132,38 @@ export default {
   },
   methods: {
     // 删除角色
-    deleteRole (name) {
-      this.$axios.put(`${api.groups}/${this.currentGroup.id}/remove`, { roles: [{ name: name }] }).then(res => {
+    onDeleteClick () {
+      this.$axios.delete(`${api.groups}/${this.currentGroup.id}/roles/${this.id}`).then(res => {
+        this.$Message.success('删除成功！')
         this.getRoleList()
+      })
+    },
+    showConfirmModal (id) {
+      this.id = id
+      this.$refs.confirmModal.handleModal({
+        content: '是否确认删除？'
       })
     },
     // 获取角色列表
     getRoleList () {
-      this.role.loading = true
-      let { page, size } = this.role
       let groupId = this.currentGroup.id
+      let url = `${api.roles}?usrgrpId=${groupId}`
 
-      if (this.role.filterName) {
-        // url + 过滤条件
+      this.role.loading = true
+
+      if (this.role.fuzzyName) {
+        url += `&fuzzyName=${this.role.fuzzyName}`
       }
 
-      this.$axios.get(`${api.roles}?page=${page}&size=${size}&groupId=${groupId}`).then(res => {
-        this.role.data = res.data.result
-        this.role.total = res.data.pages.total
+      this.$axios.get(url).then(res => {
+        this.role.data = res.data.body.roles
         this.role.loading = false
       })
     },
     onSearchClick () {
       this.getRoleList()
     },
-    reloadRoleList () {
+    onReloadList () {
       this.isShowRoleModal = false
       if (this.currentGroup) {
         // 添加角色后刷新角色列表页面

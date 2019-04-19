@@ -13,35 +13,34 @@
       <Col span="10">
       <Input
         placeholder="搜索用户"
-        v-model="user.filterName"
+        v-model="user.fuzzyName"
         @on-change="onSearchClick"></Input>
       </Col>
     </Row>
     <UserEdit
       :currentGroup="currentGroup"
       :isShowUserModal="isShowUserModal"
+      :currentUserList="getCurrentUserList"
       v-if="currentGroup"
-      @on-submit="reloadUserList"
+      @on-submit="onReloadList"
       @on-close="isShowUserModal = false" />
     <Table
       :columns="user.columns"
       :data="user.data"
       size="small"
       :loading="user.loading"
-      class="margin-bottom"></Table>
-    <Page
-      :total="user.total"
-      class="page-container"
-      @on-change="onPageChange"
-    />
+    ></Table>
+    <ConfirmModal ref="confirmModal" @transfer-ok="onDeleteClick"></ConfirmModal>
   </div>
 </template>
+
 <script>
 // eslint-disable-next-line
-import { Table, Page, Icon, Row, Col, Button, Input } from 'iview'
+import { Table, Icon, Row, Col, Button, Input } from 'iview'
 import UserEdit from './UserEdit.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 
-import { api } from '../api'
+import api from '../api'
 
 export default {
   name: 'UserList',
@@ -51,8 +50,8 @@ export default {
     Button,
     Input,
     Table,
-    Page,
-    UserEdit
+    UserEdit,
+    ConfirmModal
   },
   props: {
     currentGroup: {
@@ -66,11 +65,9 @@ export default {
   data () {
     return {
       isShowUserModal: false,
+      id: null, // 删除id
       user: {
-        filterName: '',
-        page: 1,
-        size: 10,
-        total: 0,
+        fuzzyName: '',
         loading: false,
         data: [],
         columns: [
@@ -88,7 +85,7 @@ export default {
                   },
                   on: {
                     click: () => {
-                      this.deleteUser(params.row.name)
+                      this.showConfirmModal(params.row.id)
                     }
                   }
                 },
@@ -114,6 +111,11 @@ export default {
       }
     }
   },
+  computed: {
+    getCurrentUserList () {
+      return this.user.data.map(item => item.id)
+    }
+  },
   watch: {
     currentGroup: {
       handler (curVal, oldVal) {
@@ -130,36 +132,39 @@ export default {
   },
   methods: {
     // 删除用户
-    deleteUser (name) {
-      this.$axios.put(`${api.groups}/${this.currentGroup.id}/remove`, { users: [{ name: name }] }).then(res => {
+    onDeleteClick (userId) {
+      this.$axios.delete(`${api.groups}/${this.currentGroup.id}/users/${userId}`).then(res => {
+        this.$Message.success('删除成功！')
         this.getUserList()
+      })
+    },
+    showConfirmModal (id) {
+      this.id = id
+      this.$refs.confirmModal.handleModal({
+        content: '是否确认删除？'
       })
     },
     // 获取用户列表
     getUserList () {
-      this.user.loading = true
-      let { page, size } = this.user
-      let name = this.currentGroup.name
+      let id = this.currentGroup.id
+      let url = `${api.users}?usrgrpId=${id}`
 
-      if (this.user.filterName) {
-        // url + 过滤条件
+      this.user.loading = true
+
+      if (this.user.fuzzyName) {
+        url += `&fuzzyName=${this.user.fuzzyName}`
       }
 
-      this.$axios.get(`${api.users}/?page=${page}&size=${size}&groupname=${name}`).then(res => {
-        this.user.data = res.data.result
-        this.user.total = res.data.pages.total
+      this.$axios.get(url).then(res => {
+        this.user.data = res.data.body.users
+      }).finally(() => {
         this.user.loading = false
       })
-    },
-    // 切换页数
-    onPageChange (page) {
-      this.user.page = page
-      this.getUserList()
     },
     onSearchClick () {
       this.getUserList()
     },
-    reloadUserList () {
+    onReloadList () {
       this.isShowUserModal = false
       if (this.currentGroup) {
         // 添加用户后刷新用户列表页面

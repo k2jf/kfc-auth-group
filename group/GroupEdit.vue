@@ -7,7 +7,7 @@
     @on-cancel="onClickCancel">
     <Form
       :model="group"
-      :rules="ruleValidate"
+      :rules="rules"
       :label-width="80"
       ref="formValidate">
       <FormItem label="名称" prop="name">
@@ -27,7 +27,7 @@
 <script>
 import { Modal, Input, Form, FormItem } from 'iview'
 
-import { api } from '../api'
+import api from '../api'
 
 export default {
   name: 'GroupEdit',
@@ -50,7 +50,7 @@ export default {
         name: '',
         description: ''
       },
-      ruleValidate: {
+      rules: {
         name: [
           { required: true, message: '名称不能为空', trigger: 'blur' }
         ]
@@ -68,12 +68,18 @@ export default {
     // 新建用户组
     onClickOk () {
       this.$refs.formValidate.validate((valid) => {
-        this.$emit('on-submit')
-        if (valid) {
-          this.$axios.post(`${api.groups}`, this.group).then(res => {
-            this.$refs.formValidate.resetFields()
-          })
+        if (!valid) {
+          this.$emit('on-close')
+          return
         }
+
+        this.$axios.post(`${api.groups}`, this.group).then(res => {
+          this.$Message.success('新建成功！')
+          this.$refs.formValidate.resetFields()
+          this.$emit('on-submit')
+        }).catch(() => {
+          this.$emit('on-close')
+        })
       })
     },
     onClickCancel () {

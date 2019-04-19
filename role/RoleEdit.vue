@@ -8,12 +8,12 @@
     @on-cancel="onClickCancel"
   >
     <K2Transfer
-      :data="getData"
+      :data="role.data"
       filterable
       :style="{width: '702px', margin: '0 auto'}"
       :list-style="{height: '400px', width: '300px'}"
-      :target-keys="role.selectRole"
-      :selected-keys="role.selectRole"
+      :target-keys="role.selectKeys"
+      :selected-keys="role.selectKeys"
       :titles="role.titles"
       @on-change="handleChange"
       @on-dblclick="handleChange">
@@ -25,7 +25,7 @@
 import { Modal } from 'iview'
 import K2Transfer from '@/components/kfc-k2transfer'
 
-import { api } from '../api'
+import api from '../api'
 
 export default {
   name: 'RoleEdit',
@@ -41,78 +41,63 @@ export default {
     isShowRoleModal: {
       type: Boolean,
       required: true
+    },
+    currentRoleList: {
+      type: Array,
+      required: false
     }
   },
   data () {
     return {
-      listStyle: {
-        width: '300px',
-        height: '300px'
-      },
       isShowModal: this.isShowRoleModal,
       role: {
         data: [],
-        selectRole: [],
+        selectKeys: [...this.currentRoleList],
         titles: ['未选角色', '已选角色']
       }
-    }
-  },
-  computed: {
-    getData () {
-      let data = this.role.data
-      return data.map(item => {
-        return {
-          key: item.name,
-          label: item.name
-        }
-      })
     }
   },
   watch: {
     isShowRoleModal: {
       handler (curVal, oldVal) {
         this.isShowModal = curVal
-        // 清空选中参数
-        this.role.selectRole.splice(0, this.role.selectRole.length)
-        if (curVal) {
-          this.getSelectRole()
-        }
+        if (this.role.data.length) return
+        this.getRoleList()
+      }
+    },
+    currentRoleList: {
+      handler (curVal, oldVal) {
+        this.role.selectKeys = [...curVal]
       }
     }
-  },
-  mounted () {
-    this.getAllRole()
   },
   methods: {
     // 添加角色
     onClickOk () {
-      let roles = []
-      this.role.selectRole.forEach(item => {
-        roles.push({
-          name: item
-        })
-      })
+      let roleIds = this.role.selectKeys.join(',')
 
-      this.$axios.put(`${api.groups}/${this.currentGroup.id}/add`, { roles: roles }).then(res => {
+      this.$axios.put(`${api.groups}/${this.currentGroup.id}/roles/${roleIds}`).then(res => {
+        this.$Message.success('添加成功！')
         this.$emit('on-submit')
+      }).catch(() => {
+        this.$emit('on-close')
       })
     },
     onClickCancel () {
       this.$emit('on-close')
     },
-    getAllRole () {
-      this.$axios.get(`${api.roles}?type=all`).then(res => {
-        this.role.data = res.data.result
-      })
-    },
-    getSelectRole () {
-      let groupId = this.currentGroup.id
-      this.$axios.get(`${api.roles}?type=all&groupId=${groupId}`).then(res => {
-        this.role.selectRole = res.data.result.map(item => item.name)
+    getRoleList () {
+      this.$axios.get(`${api.roles}`).then(res => {
+        this.role.data = res.data.body.roles.map(item => {
+          return {
+            key: item.id,
+            label: item.name
+          }
+        })
       })
     },
     handleChange (selection) {
-      this.role.selectRole = selection
+      this.role.selectKeys = selection
     }
   }
 }

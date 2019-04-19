@@ -4,14 +4,14 @@
     <Button
       type="default"
       long
-      class="margin-bottom add-btn"
+      class="margin-bottom btn-add"
       @click="isShowGroupModal = true">
       创建用户组
     </Button>
     <Input
       placeholder="搜索用户组"
       class="margin-bottom"
-      v-model="groupName"
+      v-model="fuzzyName"
       @on-change="onSearchClick" />
     <GroupEdit
       :isShowGroupModal="isShowGroupModal"
@@ -31,7 +31,7 @@ import { Input, Button } from 'iview'
 import GroupEdit from './GroupEdit.vue'
 import GroupList from './GroupList.vue'
 
-import { api } from '../api'
+import api from '../api'
 
 export default {
   name: 'GroupInfo',
@@ -44,7 +44,7 @@ export default {
   data () {
     return {
       isShowGroupModal: false,
-      groupName: '',
+      fuzzyName: '',
       groupData: null,
       currentGroup: null
     }
@@ -55,13 +55,10 @@ export default {
   methods: {
     // 获取用户组列表
     getGroupList () {
-      let url = `${api.groups}?type=all`
-      if (this.groupName) {
-        url += `&groupname=${this.groupName}`
-      }
+      let url = this.fuzzyName ? `${api.groups}?fuzzyName=${this.fuzzyName}` : `${api.groups}`
 
       this.$axios.get(url).then(res => {
-        this.groupData = res.data.result
+        this.groupData = res.data.body.userGroups
         if (this.currentGroup) return
         this.currentGroup = this.groupData[0]
         this.$emit('on-group-change', this.currentGroup)
@@ -70,7 +67,7 @@ export default {
     // 新建成功更新用户组列表
     onReloadList () {
       this.isShowGroupModal = false
-      setTimeout(this.getGroupList, 5000)
+      this.getGroupList()
     },
     // 选择用户组
     onChangeGroup (id) {

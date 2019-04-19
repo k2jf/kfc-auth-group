@@ -1,33 +1,31 @@
 <!-- 添加用户对话框 -->
 <template>
-  <div>
-    <Modal
-      title="添加已有用户"
-      width="700"
-      v-model="isShowModal"
-      @on-ok="onClickOk"
-      @on-cancel="onClickCancel"
-    >
-      <K2Transfer
-        :data="user.data"
-        filterable
-        :style="{width: '702px', margin: '0 auto'}"
-        :list-style="{height: '400px', width: '300px'}"
-        :target-keys="user.selectKeys"
-        :selected-keys="user.selectKeys"
-        :titles="user.titles"
-        @on-change="handleChange"
-        @on-dblclick="handleChange">
-      </K2Transfer>
-    </Modal>
-  </div>
+  <Modal
+    title="添加已有用户"
+    width="700"
+    v-model="isShowModal"
+    @on-ok="onClickOk"
+    @on-cancel="onClickCancel"
+  >
+    <K2Transfer
+      :data="user.data"
+      filterable
+      :style="{width: '702px', margin: '0 auto'}"
+      :list-style="{height: '400px', width: '300px'}"
+      :target-keys="user.selectKeys"
+      :selected-keys="user.selectKeys"
+      :titles="user.titles"
+      @on-change="handleChange"
+      @on-dblclick="handleChange">
+    </K2Transfer>
+  </Modal>
 </template>
 
 <script>
 import { Modal } from 'iview'
 import K2Transfer from '@/components/kfc-k2transfer'
 
-import { api } from '../api'
+import api from '../api'
 
 export default {
   name: 'UserEdit',
@@ -43,6 +41,10 @@ export default {
     isShowUserModal: {
       type: Boolean,
       required: true
+    },
+    currentUserList: {
+      type: Array,
+      required: false
     }
   },
   data () {
@@ -50,10 +52,8 @@ export default {
       isShowModal: this.isShowUserModal,
       user: {
         titles: ['未选用户', '已选用户'],
-        filterKey: 'name',
-        filterLabel: 'name',
         data: [],
-        selectKeys: []
+        selectKeys: [...this.currentUserList]
       }
     }
   },
@@ -61,26 +61,26 @@ export default {
     isShowUserModal: {
       handler (curVal, oldVal) {
         this.isShowModal = curVal
-        // 清空选中用户
-        this.user.selectKeys.splice(0, this.user.selectKeys.length)
-        if (curVal) {
-          this.getUserList()
-        }
+        if (this.user.data.length) return
+        this.getUserList()
+      }
+    },
+    currentUserList: {
+      handler (curVal, oldVal) {
+        this.user.selectKeys = [...curVal]
       }
     }
   },
   methods: {
     // 添加用户
     onClickOk () {
-      let users = []
-      this.user.selectKeys.forEach(item => {
-        users.push({
-          name: item
-        })
-      })
+      let userIds = this.user.selectKeys.join(',')
 
-      this.$axios.put(`${api.groups}/${this.currentGroup.id}/add`, { users: users }).then(res => {
+      this.$axios.put(`${api.groups}/${this.currentGroup.id}/users/${userIds}`).then(res => {
+        this.$Message.success('添加成功！')
         this.$emit('on-submit')
+      }).catch(() => {
+        this.$emit('on-close')
       })
     },
     onClickCancel () {
@@ -88,35 +88,18 @@ export default {
     },
     getUserList () {
       // 获取所有用户
-      this.$axios.get(`${api.users}?type=all`).then(res => {
-        this.user.data = res.data.result.map(item => {
+      this.$axios.get(`${api.users}`).then(res => {
+        this.user.data = res.data.body.users.map(item => {
           return {
-            key: item.name,
+            key: item.id,
             label: item.name
           }
         })
       })
-      // 获取当前用户组已有用户列表
-      this.$axios.get(`${api.users}?type=all&groupname=${this.currentGroup.name}`).then(res => {
-        this.user.selectKeys = res.data.result.map(item => item.name)
-      })
     },
-    handleChange (selectedFields) {
-      this.user.selectKeys = selectedFields
+    handleChange (selection) {
+      this.user.selectKeys = selection
     }
   }
 }
 </script>
-
-<style lang="css" scoped>
-.form-card {
-  height: 280px;
-}
-.form-panel {
-  height: 280px;
-  padding: 10px;
-  border: 1px solid #dcdee2;
-  border-radius: 3px;
-  overflow: auto;
-}
-</style>
